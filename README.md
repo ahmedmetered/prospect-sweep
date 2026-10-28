@@ -70,3 +70,7 @@ In the EU, prospect lists are personal data — you own what you do with the out
 
 MIT. Crediting and building on gosom's scraper; the sweep method (query planning,
 category-first filtering, cid-dedupe, socials, reporting) is this repo's.
+
+## Works with
+
+- [anyoutbound](https://github.com/ahmedmetered/anyoutbound) bundles this skill with anyoutreach into one lead-generation + approval-first outreach pipeline.
