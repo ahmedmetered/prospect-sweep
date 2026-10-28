@@ -73,4 +73,4 @@ category-first filtering, cid-dedupe, socials, reporting) is this repo's.
 
 ## Works with
 
-- [anyoutbound](https://github.com/ahmedmetered/anyoutbound) bundles this skill with anyoutreach into one lead-generation + approval-first outreach pipeline.
+- [anydeals](https://github.com/ahmedmetered/anydeals) bundles this skill with anyoutreach into one lead-generation + approval-first outreach pipeline.
