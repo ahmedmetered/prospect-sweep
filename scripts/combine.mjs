@@ -49,8 +49,10 @@ function parseCsv(text) {
 
 function load(path) {
   const rows = parseCsv(readFileSync(path, "utf8"));
-  const head = rows.shift();
+  const head = rows.shift() || [];
   const idx = Object.fromEntries(head.map((h, i) => [h, i]));
+  const malformed = rows.filter((r) => r.length <= 10).length;
+  if (malformed) console.error(`${path}: skipped ${malformed} malformed row(s)`);
   return rows.filter((r) => r.length > 10).map((r) => ({
     cid: (r[idx.cid] || "").trim(),
     placeId: (r[idx.place_id] || "").trim(),
@@ -69,7 +71,13 @@ const all = inputs.flatMap(load);
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const seen = new Map();
 for (const r of all) {
-  const key = r.cid || r.placeId || `${norm(r.title)}|${norm(r.phone)}`;
+  // Dedupe on the strongest identifier available. Without a cid/placeId,
+  // title+phone is usable — but title alone (empty phone) can merge two
+  // distinct businesses, so the address disambiguates and a row with
+  // neither keeps its own entry.
+  const key = r.cid
+    || r.placeId
+    || (r.phone ? `${norm(r.title)}|${norm(r.phone)}` : (norm(r.address) ? `${norm(r.title)}|${norm(r.address)}` : `${norm(r.title)}|row-${seen.size}`));
   const prev = seen.get(key);
   if (!prev) seen.set(key, r);
   else {
@@ -91,7 +99,13 @@ const kept = deduped.filter((r) => {
 const score = (r) => (r.phone ? 2 : 0) + (r.website ? 1 : 0);
 kept.sort((a, b) => score(b) - score(a) || b.reviews - a.reviews);
 
-const esc = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+// CSV formula-injection guard: a leading =, +, - or @ in third-party text
+// executes as a formula when the file opens in Excel/Sheets. The quote
+// neutralizes it while keeping the cell readable.
+const esc = (s) => {
+  const v = String(s ?? "").replace(/"/g, '""');
+  return `"${/^[=+@-]/.test(v) ? `'${v}` : v}"`;
+};
 const csvOf = (rows) => ["title,category,city,address,phone,website,rating,reviews,cid", ...rows.map((r) => [r.title, r.category, r.city, r.address, r.phone, r.website, r.rating, r.reviews, r.cid].map(esc).join(","))].join("\n");
 writeFileSync(`${outPrefix}-all.csv`, csvOf(deduped), "utf8");
 writeFileSync(`${outPrefix}.csv`, csvOf(kept), "utf8");

@@ -39,17 +39,16 @@ const docker = (...rest) => {
   return r.stdout.trim();
 };
 
-// fresh container (refuse to kill a running crawl)
-const state = docker("inspect", "-f", "{{.State.Running}}", name).catch?.(() => "");
-try {
-  if (state === "true") {
-    console.error(`a crawl container named ${name} is already running; wait for it or remove it`);
-    process.exit(1);
-  }
-  if (state !== "") spawnSync("docker", ["rm", name], { encoding: "utf8" });
-} catch {
-  /* container does not exist yet — fine */
+// fresh container (refuse to kill a running crawl). The inspect call is
+// expected to fail on a fresh machine — failure simply means "no container",
+// so it must not route through the fatal docker() helper.
+const inspect = spawnSync("docker", ["inspect", "-f", "{{.State.Running}}", name], { encoding: "utf8" });
+const state = inspect.status === 0 ? inspect.stdout.trim() : "";
+if (state === "true") {
+  console.error(`a crawl container named ${name} is already running; wait for it or remove it`);
+  process.exit(1);
 }
+if (state !== "") spawnSync("docker", ["rm", name], { encoding: "utf8" });
 
 console.log(`starting crawl: ${readFileSync(queriesPath, "utf8").split("\n").filter(Boolean).length} queries, depth ${depth}, lang ${lang}`);
 docker(
